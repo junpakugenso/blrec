@@ -50,7 +50,8 @@ as part of an upgrade.
    and repair only the incomplete promotion/verification; do not overwrite it.
 
 Public CI uses synthetic gift fixtures; the optional recording replay uses
-BLREC_GIFT_SAMPLE_ZIP locally only. ARM smoke tests run under QEMU. CI proves
+BLREC_GIFT_SAMPLE_ZIP locally only. Build/tests use native amd64 and ARM64 runners;
+the release job additionally verifies public ARM pulls/startup under QEMU. CI proves
 container startup, API/UI availability, settings persistence, FFmpeg and gift
 conversion; it does not prove recording a newly arriving live gift.
 
