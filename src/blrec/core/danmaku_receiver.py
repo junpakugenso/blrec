@@ -4,6 +4,7 @@ from typing import Final
 from loguru import logger
 
 from blrec.bili.danmaku_client import DanmakuClient, DanmakuCommand, DanmakuListener
+from blrec.bili.gift_protocol import decode_gifts
 from blrec.bili.live import Live
 from blrec.bili.typing import Danmaku
 from blrec.utils.mixins import StoppableMixin
@@ -39,6 +40,17 @@ class DanmakuReceiver(DanmakuListener, StoppableMixin):
         cmd: str = danmu['cmd']
         msg: DanmakuMsg
 
+        if cmd == 'SEND_GIFT_V2':
+            try:
+                gifts = decode_gifts(danmu['data']['pb'])
+                messages = [GiftSendMsg.from_danmu({'data': gift}) for gift in gifts]
+            except (KeyError, TypeError, ValueError):
+                self._logger.warning('Unable to decode SEND_GIFT_V2 gift message')
+                return
+            for msg in messages:
+                self._enqueue(msg)
+            return
+
         if cmd.startswith(DanmakuCommand.DANMU_MSG.value):
             msg = DanmuMsg.from_danmu(danmu)
         elif cmd == DanmakuCommand.SEND_GIFT.value:
@@ -52,6 +64,9 @@ class DanmakuReceiver(DanmakuListener, StoppableMixin):
         else:
             return
 
+        self._enqueue(msg)
+
+    def _enqueue(self, msg: DanmakuMsg) -> None:
         try:
             self._queue.put_nowait(msg)
         except QueueFull:
