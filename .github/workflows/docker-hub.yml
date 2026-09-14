@@ -1,13 +1,12 @@
 name: CI to Docker Hub
 
 on:
-  push:
-    tags:
-      - v*.*.*
+  workflow_dispatch:
 
 jobs:
 
   build:
+    if: github.repository == 'acgnhiki/blrec'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

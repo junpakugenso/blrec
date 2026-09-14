@@ -1,12 +1,11 @@
 name: CI to PyPI
 
 on:
-  push:
-    tags:
-      - v*.*.*
+  workflow_dispatch:
 
 jobs:
   build-and-publish:
+    if: github.repository == 'acgnhiki/blrec'
     name: Build and publish Python 🐍 distributions 📦 to PyPI
     runs-on: ubuntu-latest
 

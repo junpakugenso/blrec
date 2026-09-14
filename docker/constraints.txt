@@ -1,0 +1,5 @@
+# Docker-only compatibility constraints; do not change users' source installs.
+aiohttp==3.9.5
+setuptools==70.3.0
+wheel==0.45.1
+protobuf==6.33.6

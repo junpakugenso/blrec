@@ -1,2 +1,15 @@
-*/__pycache__*
-*/.mypy_cache*
+# Send only the inputs required by Dockerfile to the build service.
+**
+!Dockerfile
+!setup.py
+!setup.cfg
+!MANIFEST.in
+!README.md
+!LICENSE
+!docker/
+!docker/constraints.txt
+!src/
+!src/**
+**/__pycache__/**
+**/*.pyc
+**/*.egg-info/**

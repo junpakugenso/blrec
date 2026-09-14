@@ -1,9 +1,7 @@
 name: Windows portable
 
 on:
-  push:
-    tags:
-      - v*.*.*
+  workflow_dispatch:
 
 env:
   FFMPEG_ARCHIVE_URL: https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-lgpl-shared.zip
@@ -13,6 +11,7 @@ env:
 jobs:
 
   build:
+    if: github.repository == 'acgnhiki/blrec'
     name: Build Windows portable distributions
     runs-on: windows-latest
 
