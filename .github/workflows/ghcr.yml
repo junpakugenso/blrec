@@ -1,6 +1,7 @@
 name: Docker build, test and release
 
 on:
+  workflow_dispatch:
   push:
     branches: [master]
     tags: ['v*.*.*']
