@@ -35,7 +35,9 @@ as part of an upgrade.
    preparing a new release. Update this document's release notes/examples.
 2. Commit and push to master. Wait for both Docker build/test jobs to pass.
 3. Tag the same tested commit `v<version>` and push that tag. Tag and package
-   versions must match; branch pushes do not publish images.
+   versions must match; branch pushes do not publish images. If GitHub does not
+   start a run automatically, dispatch this workflow explicitly on that same tag.
+   Manual runs on master only validate and cannot publish.
 4. The tag workflow builds/tests both architectures, exports those exact images,
    publishes candidate tags, verifies anonymous pulls and startup, then promotes
    to `<version>` and `latest`. Existing version tags are never overwritten.
