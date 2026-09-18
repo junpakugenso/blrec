@@ -41,6 +41,7 @@ class SettingsManager:
     def __init__(self, app: Application, settings: Settings) -> None:
         self._app = app
         self._settings = settings
+        self._dump_lock = asyncio.Lock()
 
     def get_settings(
         self,
@@ -112,8 +113,26 @@ class SettingsManager:
         return TaskOptions.from_settings(settings)
 
     async def dump_settings(self) -> None:
-        loop = asyncio.get_running_loop()
-        await loop.run_in_executor(None, self._settings.dump)
+        async with self._dump_lock:
+            # The worker must not read a model that the event loop is changing.
+            snapshot = self._settings.copy(deep=True)
+            loop = asyncio.get_running_loop()
+            pending = loop.run_in_executor(None, snapshot.dump)
+            cancelled = False
+            while True:
+                try:
+                    await asyncio.shield(pending)
+                    break
+                except asyncio.CancelledError:
+                    # A thread cannot be cancelled: retain ownership until it
+                    # finishes, even if the caller is cancelled repeatedly.
+                    cancelled = True
+                except Exception:
+                    if cancelled:
+                        raise asyncio.CancelledError() from None
+                    raise
+            if cancelled:
+                raise asyncio.CancelledError()
 
     def has_task_settings(self, room_id: int) -> bool:
         return self.find_task_settings(room_id) is not None

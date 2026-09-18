@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import os
 import re
+import stat
+import tempfile
 from typing import ClassVar, Collection, Final, List, Optional, TypeVar
 
 import toml
@@ -671,8 +673,27 @@ class Settings(BaseModel):
 
     def dump(self) -> None:
         assert self._path
-        with open(self._path, 'wt', encoding='utf8') as file:
-            toml.dump(self.dict(exclude_none=True), file)
+        content = toml.dumps(self.dict(exclude_none=True))
+        # Resolve symlinks without replacing the link itself. The temporary
+        # file must be on the same filesystem for atomic replacement.
+        target = os.path.realpath(self._path)
+        try:
+            mode = stat.S_IMODE(os.stat(target).st_mode)
+        except FileNotFoundError:
+            mode = 0o600
+        fd, temporary = tempfile.mkstemp(
+            prefix='.blrec-settings-', suffix='.tmp', dir=os.path.dirname(target)
+        )
+        try:
+            with os.fdopen(fd, 'wt', encoding='utf8') as file:
+                file.write(content)
+                file.flush()
+                os.fsync(file.fileno())
+            os.chmod(temporary, mode)
+            os.replace(temporary, target)
+        finally:
+            if os.path.exists(temporary):
+                os.unlink(temporary)
 
     @validator('tasks')
     def _validate_tasks(cls, tasks: List[TaskSettings]) -> List[TaskSettings]:
