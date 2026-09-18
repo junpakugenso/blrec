@@ -9,6 +9,7 @@ from loguru import logger
 from uvicorn.config import LOGGING_CONFIG
 
 from .. import __prog__, __version__
+from ..bili.network_settings import ipv4_only
 from ..logging import TqdmOutputStream
 
 cli = typer.Typer()
@@ -47,7 +48,9 @@ def cli_main(
     host: str = typer.Option('localhost', help='webapp host bind'),
     port: int = typer.Option(2233, help='webapp port bind'),
     open: bool = typer.Option(False, help='open webapp in default browser'),
-    ipv4: bool = typer.Option(False, help='use IPv4 only'),
+    ipv4: Optional[bool] = typer.Option(
+        None, help='use IPv4 only (default: BLREC_IPV4, otherwise automatic)'
+    ),
     root_path: str = typer.Option('', help='ASGI root path'),
     key_file: Optional[str] = typer.Option(None, help='SSL key file'),
     cert_file: Optional[str] = typer.Option(None, help='SSL certificate file'),
@@ -63,7 +66,11 @@ def cli_main(
     if log_dir is not None:
         os.environ['BLREC_LOG_DIR'] = log_dir
     if ipv4 is not None:
-        os.environ['BLREC_IPV4'] = '1'
+        os.environ['BLREC_IPV4'] = '1' if ipv4 else '0'
+    try:
+        ipv4_only()
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc), param_hint='BLREC_IPV4') from exc
 
     if not sys.stderr.isatty():
         progress = False

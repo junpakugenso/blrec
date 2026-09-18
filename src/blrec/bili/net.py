@@ -1,14 +1,16 @@
 import asyncio
-import os
 import socket
 from typing import Dict
 
 import aiohttp
 import requests
 
+from .network_settings import ipv4_only
+
 __all__ = ('get_connector', 'close_connector', 'timeout')
 
-USE_IPV4_ONLY = bool(os.environ.get('BLREC_IPV4'))
+# Startup-only: callers must set BLREC_IPV4 before importing the network stack.
+USE_IPV4_ONLY = ipv4_only()
 
 if not USE_IPV4_ONLY:
     family = 0
