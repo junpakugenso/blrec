@@ -329,16 +329,24 @@ class StreamRecorderImpl(
     def _dispose(self) -> None:
         self._subscription.dispose()
         del self._subscription
-        self._on_completed()
+        self._on_completed(wait_for_listeners=True)
 
-    def _on_completed(self) -> None:
+    def _on_completed(self, *, wait_for_listeners: bool = False) -> None:
         if self._completed:
             return
         self._completed = True
 
         self._dl_statistics.freeze()
         self._rec_statistics.freeze()
-        self._emit_event('stream_recording_completed')
+        notification = self._emit('stream_recording_completed')
+        if wait_for_listeners:
+            # Explicit stop keeps its existing notification-before-return order.
+            self._call_coroutine(notification)
+        else:
+            # A natural completion listener may stop this recorder and join the
+            # current worker. Release that worker before waiting for listeners.
+            # EventEmitter reports listener failures through ExceptionSubmitter.
+            self._run_coroutine(notification)
 
     def _on_profile_updated(self, profile: StreamProfile) -> None:
         self._logger.debug(f'Stream profile: {profile}')
