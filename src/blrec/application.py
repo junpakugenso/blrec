@@ -9,6 +9,7 @@ from loguru import logger
 
 from . import __prog__, __version__
 from .bili.helpers import ensure_room_id
+from .bili.net import close_connector
 from .core.typing import MetaData
 from .disk_space import SpaceMonitor, SpaceReclaimer
 from .event.event_submitters import SpaceEventSubmitter
@@ -128,6 +129,7 @@ class Application:
                 await self._loading_task
         await self._task_manager.stop_all_tasks(force=force)
         await self._task_manager.destroy_all_tasks()
+        await close_connector()
         self._destroy()
 
     async def restart(self) -> None:
