@@ -24,7 +24,11 @@ class SwitchableMixin(ABC):
             if self._enabled:
                 return
             self._enabled = True
-            self._do_enable()
+            try:
+                self._do_enable()
+            except BaseException:
+                self._enabled = False
+                raise
 
     @final
     def disable(self) -> None:
@@ -32,7 +36,11 @@ class SwitchableMixin(ABC):
             if not self._enabled:
                 return
             self._enabled = False
-            self._do_disable()
+            try:
+                self._do_disable()
+            except BaseException:
+                self._enabled = True
+                raise
 
     @abstractmethod
     def _do_enable(self) -> None:
@@ -60,7 +68,11 @@ class StoppableMixin(ABC):
             if not self._stopped:
                 return
             self._stopped = False
-            self._do_start()
+            try:
+                self._do_start()
+            except BaseException:
+                self._stopped = True
+                raise
 
     @final
     def stop(self) -> None:
@@ -68,7 +80,11 @@ class StoppableMixin(ABC):
             if self._stopped:
                 return
             self._stopped = True
-            self._do_stop()
+            try:
+                self._do_stop()
+            except BaseException:
+                self._stopped = False
+                raise
 
     @abstractmethod
     def _do_start(self) -> None:
@@ -95,7 +111,11 @@ class AsyncStoppableMixin(ABC):
             if not self._stopped:
                 return
             self._stopped = False
-            await self._do_start()
+            try:
+                await self._do_start()
+            except BaseException:
+                self._stopped = True
+                raise
 
     @final
     async def stop(self) -> None:
@@ -103,7 +123,11 @@ class AsyncStoppableMixin(ABC):
             if self._stopped:
                 return
             self._stopped = True
-            await self._do_stop()
+            try:
+                await self._do_stop()
+            except BaseException:
+                self._stopped = False
+                raise
 
     @abstractmethod
     async def _do_start(self) -> None:
