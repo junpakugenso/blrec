@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from contextlib import AsyncExitStack, ExitStack
 from datetime import datetime
 from typing import Iterator, Optional
 
@@ -432,18 +433,19 @@ class Recorder(
         await self._stop_recording()
 
     async def _do_start(self) -> None:
-        self._live_monitor.add_listener(self)
-        self._danmaku_dumper.add_listener(self)
-        self._raw_danmaku_dumper.add_listener(self)
-        self._cover_downloader.add_listener(self)
+        with ExitStack() as rollback:
+            for source in (self._live_monitor, self._danmaku_dumper,
+                           self._raw_danmaku_dumper, self._cover_downloader):
+                source.add_listener(self)
+                rollback.callback(source.remove_listener, self)
+            self._print_live_info()
+            if self._live.is_living():
+                self._stream_available = True
+                await self._start_recording()
+            else:
+                self._print_waiting_message()
+            rollback.pop_all()
         self._logger.debug('Started recorder')
-
-        self._print_live_info()
-        if self._live.is_living():
-            self._stream_available = True
-            await self._start_recording()
-        else:
-            self._print_waiting_message()
 
     async def _do_stop(self) -> None:
         await self._stop_recording()
@@ -457,35 +459,52 @@ class Recorder(
         if self._recording:
             return
         self._recording = True
+        async with AsyncExitStack() as rollback:
+            try:
+                if self.save_raw_danmaku:
+                    self._raw_danmaku_dumper.enable()
+                    rollback.callback(self._raw_danmaku_dumper.disable)
+                    self._raw_danmaku_receiver.start()
+                    rollback.callback(self._raw_danmaku_receiver.stop)
+                self._danmaku_dumper.enable()
+                rollback.callback(self._danmaku_dumper.disable)
+                self._danmaku_receiver.start()
+                rollback.callback(self._danmaku_receiver.stop)
+                self._cover_downloader.enable()
+                rollback.callback(self._cover_downloader.disable)
+                self._stream_recorder.add_listener(self)
+                rollback.callback(self._stream_recorder.remove_listener, self)
 
-        if self.save_raw_danmaku:
-            self._raw_danmaku_dumper.enable()
-            self._raw_danmaku_receiver.start()
-        self._danmaku_dumper.enable()
-        self._danmaku_receiver.start()
-        self._cover_downloader.enable()
-        self._stream_recorder.add_listener(self)
+                await self._prepare()
+                if self._stream_available:
+                    await self._stream_recorder.start()
+                    rollback.push_async_callback(self._stream_recorder.stop)
 
-        await self._prepare()
-        if self._stream_available:
-            await self._stream_recorder.start()
-
-        self._logger.info('Started recording')
-        await self._emit('recording_started', self)
+                self._logger.info('Started recording')
+                await self._emit('recording_started', self)
+                rollback.pop_all()
+            except BaseException:
+                # Stop callbacks may re-enter _stop_recording during rollback.
+                self._recording = False
+                raise
 
     async def _stop_recording(self) -> None:
         if not self._recording:
             return
         self._recording = False
 
-        await self._stream_recorder.stop()
-        if self.save_raw_danmaku:
-            self._raw_danmaku_dumper.disable()
-            self._raw_danmaku_receiver.stop()
-        self._danmaku_dumper.disable()
-        self._danmaku_receiver.stop()
-        self._cover_downloader.disable()
-        self._stream_recorder.remove_listener(self)
+        try:
+            await self._stream_recorder.stop()
+            if self.save_raw_danmaku:
+                self._raw_danmaku_dumper.disable()
+                self._raw_danmaku_receiver.stop()
+            self._danmaku_dumper.disable()
+            self._danmaku_receiver.stop()
+            self._cover_downloader.disable()
+            self._stream_recorder.remove_listener(self)
+        except BaseException:
+            self._recording = True
+            raise
 
         if self._stopped:
             self._logger.info('Recording Cancelled')
