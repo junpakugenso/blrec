@@ -4,14 +4,14 @@ This fork retains the original author and GPLv3 license. Version 2.0.1 is based
 on ee3700c (SEND_GIFT_V2 support), not on the separate local Windows maintenance
 work. No recording data, cookies or personal settings are part of the image.
 
-## Run 2.0.2
+## Run 2.0.3
 
 ```sh
-docker pull ghcr.io/junpakugenso/blrec:2.0.2
+docker pull ghcr.io/junpakugenso/blrec:2.0.3
 docker run -d --name blrec --restart unless-stopped \
   -p 127.0.0.1:2233:2233 \
   -v blrec-cfg:/cfg -v blrec-log:/log -v blrec-rec:/rec \
-  ghcr.io/junpakugenso/blrec:2.0.2
+  ghcr.io/junpakugenso/blrec:2.0.3
 ```
 
 Open http://localhost:2233. Both linux/amd64 and linux/arm64 are supported;
@@ -25,7 +25,7 @@ Before upgrading, stop recording and back up /cfg. Note the current image tag
 or digest and the volume/bind-mount arguments. Pull the desired fixed version,
 stop and remove only the old container (never its volumes), and recreate it with
 the same mounts. To roll back, repeat using the recorded previous tag/digest.
-There is no database or settings migration in 2.0.2. Mount the entire /cfg directory:
+There is no database or settings migration in 2.0.3. Mount the entire /cfg directory:
 atomic replacement cannot work on some single-file bind mounts. Avoid `latest` for deployments
 where reproducibility matters; never use `docker volume rm` or `compose down -v`
 as part of an upgrade.
@@ -33,14 +33,14 @@ as part of an upgrade.
 For the named-volume example above, after finishing recording:
 
 ```sh
-docker pull ghcr.io/junpakugenso/blrec:2.0.2
+docker pull ghcr.io/junpakugenso/blrec:2.0.3
 docker stop blrec
-docker cp blrec:/cfg ./blrec-cfg-backup-before-2.0.2
+docker cp blrec:/cfg ./blrec-cfg-backup-before-2.0.3
 docker rm blrec
 docker run -d --name blrec --restart unless-stopped \
   -p 127.0.0.1:2233:2233 \
   -v blrec-cfg:/cfg -v blrec-log:/log -v blrec-rec:/rec \
-  ghcr.io/junpakugenso/blrec:2.0.2
+  ghcr.io/junpakugenso/blrec:2.0.3
 ```
 
 Use a new backup directory if that name already exists. Preserve your own port,
@@ -48,18 +48,18 @@ mounts, environment and extra arguments if they differ from this example.
 To roll back this example without deleting data:
 
 ```sh
-docker pull ghcr.io/junpakugenso/blrec:2.0.1
+docker pull ghcr.io/junpakugenso/blrec:2.0.2
 docker stop blrec
 docker rm blrec
 docker run -d --name blrec --restart unless-stopped \
   -p 127.0.0.1:2233:2233 \
   -v blrec-cfg:/cfg -v blrec-log:/log -v blrec-rec:/rec \
-  ghcr.io/junpakugenso/blrec:2.0.1
+  ghcr.io/junpakugenso/blrec:2.0.2
 ```
 
 ## Release procedure
 
-1. Increment `src/blrec/__init__.py` to the next patch (next: 2.0.3), only when
+1. Increment `src/blrec/__init__.py` to the next patch (next: 2.0.4), only when
    preparing a new release. Update this document's release notes/examples.
 2. Commit and push to master. Wait for both Docker build/test jobs to pass.
 3. Tag the same tested commit `v<version>` and push that tag. Tag and package
@@ -82,6 +82,19 @@ BLREC_GIFT_SAMPLE_ZIP locally only. Build/tests use native amd64 and ARM64 runne
 the release job additionally verifies public ARM pulls/startup under QEMU. CI proves
 container startup, API/UI availability, settings persistence, FFmpeg and gift
 conversion; it does not prove recording a newly arriving live gift.
+
+## 2.0.3 changes and acceptance scope
+
+- Create the shared network pool lazily in the running event loop; isolate pools
+  across loops while retaining the 200-connection limit, timeout and proxy policy.
+- Close the pool after all application tasks are successfully destroyed; create a
+  fresh pool on restart. Failed task shutdown retains the pool for safe retry.
+- Cover local HTTP requests, connection reuse, cancellation and application
+  shutdown/restart with regression tests, without changing gift/XML or settings.
+- Standalone users of internal helpers/Live must explicitly close their pool.
+  See [lifecycle contract and limits](stability-stage2.md). Avoid concurrent
+  management requests during an in-app restart; lossless concurrent restart,
+  real live recording and long-duration soak tests are not claimed.
 
 ## 2.0.2 changes and acceptance scope
 
