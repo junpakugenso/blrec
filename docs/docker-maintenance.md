@@ -4,14 +4,14 @@ This fork retains the original author and GPLv3 license. Version 2.0.1 is based
 on ee3700c (SEND_GIFT_V2 support), not on the separate local Windows maintenance
 work. No recording data, cookies or personal settings are part of the image.
 
-## Run 2.0.3
+## Run 2.0.4
 
 ```sh
-docker pull ghcr.io/junpakugenso/blrec:2.0.3
+docker pull ghcr.io/junpakugenso/blrec:2.0.4
 docker run -d --name blrec --restart unless-stopped \
   -p 127.0.0.1:2233:2233 \
   -v blrec-cfg:/cfg -v blrec-log:/log -v blrec-rec:/rec \
-  ghcr.io/junpakugenso/blrec:2.0.3
+  ghcr.io/junpakugenso/blrec:2.0.4
 ```
 
 Open http://localhost:2233. Both linux/amd64 and linux/arm64 are supported;
@@ -25,7 +25,7 @@ Before upgrading, stop recording and back up /cfg. Note the current image tag
 or digest and the volume/bind-mount arguments. Pull the desired fixed version,
 stop and remove only the old container (never its volumes), and recreate it with
 the same mounts. To roll back, repeat using the recorded previous tag/digest.
-There is no database or settings migration in 2.0.3. Mount the entire /cfg directory:
+There is no database or settings migration in 2.0.4. Mount the entire /cfg directory:
 atomic replacement cannot work on some single-file bind mounts. Avoid `latest` for deployments
 where reproducibility matters; never use `docker volume rm` or `compose down -v`
 as part of an upgrade.
@@ -33,14 +33,14 @@ as part of an upgrade.
 For the named-volume example above, after finishing recording:
 
 ```sh
-docker pull ghcr.io/junpakugenso/blrec:2.0.3
+docker pull ghcr.io/junpakugenso/blrec:2.0.4
 docker stop blrec
-docker cp blrec:/cfg ./blrec-cfg-backup-before-2.0.3
+docker cp blrec:/cfg ./blrec-cfg-backup-before-2.0.4
 docker rm blrec
 docker run -d --name blrec --restart unless-stopped \
   -p 127.0.0.1:2233:2233 \
   -v blrec-cfg:/cfg -v blrec-log:/log -v blrec-rec:/rec \
-  ghcr.io/junpakugenso/blrec:2.0.3
+  ghcr.io/junpakugenso/blrec:2.0.4
 ```
 
 Use a new backup directory if that name already exists. Preserve your own port,
@@ -48,18 +48,18 @@ mounts, environment and extra arguments if they differ from this example.
 To roll back this example without deleting data:
 
 ```sh
-docker pull ghcr.io/junpakugenso/blrec:2.0.2
+docker pull ghcr.io/junpakugenso/blrec:2.0.3
 docker stop blrec
 docker rm blrec
 docker run -d --name blrec --restart unless-stopped \
   -p 127.0.0.1:2233:2233 \
   -v blrec-cfg:/cfg -v blrec-log:/log -v blrec-rec:/rec \
-  ghcr.io/junpakugenso/blrec:2.0.2
+  ghcr.io/junpakugenso/blrec:2.0.3
 ```
 
 ## Release procedure
 
-1. Increment `src/blrec/__init__.py` to the next patch (next: 2.0.4), only when
+1. Increment `src/blrec/__init__.py` to the next patch (next: 2.0.5), only when
    preparing a new release. Update this document's release notes/examples.
 2. Commit and push to master. Wait for both Docker build/test jobs to pass.
 3. Tag the same tested commit `v<version>` and push that tag. Tag and package
@@ -82,6 +82,21 @@ BLREC_GIFT_SAMPLE_ZIP locally only. Build/tests use native amd64 and ARM64 runne
 the release job additionally verifies public ARM pulls/startup under QEMU. CI proves
 container startup, API/UI availability, settings persistence, FFmpeg and gift
 conversion; it does not prove recording a newly arriving live gift.
+
+## 2.0.4 changes and acceptance scope
+
+- Honor explicit `--ipv4` / `--no-ipv4` over BLREC_IPV4; otherwise preserve the
+  environment and default to the system's automatic IPv4/IPv6 selection.
+- Recognize true/false, 1/0, yes/no and on/off (case-insensitive). Invalid values
+  fail before server startup; version/help still work without network setup.
+- This corrects the old default that accidentally forced IPv4. If your IPv6
+  route is unreliable, add `-e BLREC_IPV4=1` before the image in docker run to
+  preserve that behavior. `--no-ipv4` does not mean IPv6-only and does not change
+  the web server's `--host` binding. Existing Windows launchers keep `--ipv4`.
+- Restart the process after changing this setting; in-app restart does not
+  reload it. See [startup policy and test boundaries](stability-stage3.md).
+- No changes to recording, gift/XML, pool lifecycle, dependencies or config format.
+  Offline and local-loopback tests do not prove external IPv6 or live recording.
 
 ## 2.0.3 changes and acceptance scope
 
